@@ -37,13 +37,41 @@ and since that differs from character to character, the outline looked uneven.
 These values assume the theme's `[common]` settings for `_japanese 16px` (`Top=8`, `Baseline=23`, `DefaultWidth=19`).
 With `DefaultWidth=19` the game only draws columns 4–26 of each cell (centered on 15.5), so keep glyphs inside that range if you change the size.
 
+## Character lists
+
+`main.py` renders two lists, each starting on a new page:
+
+| File | Pages | Contents |
+| --- | --- | --- |
+| `edu4808.txt` | `kanji-jis215`–`kanji-jis233` | the 4808 common Traditional Chinese characters (Ministry of Education list) |
+| `font_extra.txt` | `kanji-jis234`–`kanji-jis277` | every other full-width character in the font that CyberiaStyle 6 can't draw yet (11132 characters) |
+
+`font_extra.txt` is made by `make_extra_list.py`, which reads the theme's `Fonts/` folder,
+follows the font imports the game uses (`Common default` → `_16px fonts` → `_jp 16px`, `_japanese 16px`, …)
+and keeps the characters of `SourceHanSansHK-Medium.otf` that are:
+
+- not drawn by the theme yet (characters the theme already has keep their original look),
+- full width (advance = 1 em); half-width glyphs would sit in a 19 px wide cell with a big gap,
+- in the BMP (U+0000–U+FFFF); the game stores characters in a 16-bit `wchar_t` on Windows,
+- visible (no spaces, control, format, private-use or combining characters).
+
+That covers the rest of CJK Unified Ideographs and Extension A in the font (for example 肏),
+compatibility ideographs, radicals, Bopomofo, enclosed numbers and letters (①, ⑴, ㊣), CJK compatibility units (㎡) and full-width symbols.
+
+The `SourceHanSansHK` file here is the Hong Kong subset font, so characters outside that subset
+(for example most of Extension A) are still missing. Rendering from a larger font would cover more.
+
+The 44 extra pages add about 0.5 s to startup and about 22 MB of texture memory (the game loads them as RGBA4, 512 KB per page).
+
 ## Folder Structure
 
 ```
 your_project/
 ├── main.py
+├── make_extra_list.py            # Writes font_extra.txt from the theme's Fonts folder
 ├── SourceHanSansHK-Medium.otf    # Required font file
 ├── edu4808.txt                   # List of Chinese characters (one line)
+├── font_extra.txt                # Other characters of the font the theme lacks
 ├── output_rgba_gradient_fixed/  # Generated images and ini file
 ```
 
@@ -51,11 +79,12 @@ your_project/
 
 - Python 3.7 or above
 - Pillow 8.0 or above
+- fontTools (only for `make_extra_list.py`)
 
 Install dependencies:
 
 ```
-pip install pillow
+pip install pillow fonttools
 ```
 
 ## Usage
@@ -65,18 +94,24 @@ pip install pillow
 
 2. Place your desired character list into `edu4808.txt` (each line can contain multiple characters)
 
-3. Run the generator script:
+3. (Optional) Regenerate `font_extra.txt` against your copy of the theme:
+
+```
+python make_extra_list.py "<StepMania>/Themes/CyberiaStyle 6 -consciousness to cyber-/Fonts"
+```
+
+4. Run the generator script:
 
 ```
 python main.py
 ```
 
-4. PNG font sheets and `_japanese 16px [kanji-jis] 16x16.ini` will appear in the output folder.
+5. PNG font sheets and `_japanese 16px [kanji-jis] 16x16.ini` will appear in the output folder.
 
 ## Installing into CyberiaStyle 6
 
 1. Copy the PNG files into `Themes/CyberiaStyle 6 -consciousness to cyber-/Fonts/`.
-2. Append the `[kanji-jis215]` … `[kanji-jis233]` sections of the generated `.ini` to the end of `Fonts/_japanese 16px.ini`.
+2. Append the `[kanji-jis215]` … `[kanji-jis277]` sections of the generated `.ini` to the end of `Fonts/_japanese 16px.ini`.
    - Do not copy `[common]`; the theme already has it.
    - Do not put the generated `.ini` file itself into `Fonts/`: the game only allows one `.ini` per font and stops with "More than one INI found".
 3. Pages are loaded in file name order, so these pages replace the theme's own glyph for any character that is in both.

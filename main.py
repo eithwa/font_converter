@@ -20,7 +20,14 @@ CHARS_PER_ROW = 16
 ROWS_PER_IMAGE = 16
 CHARS_PER_IMAGE = CHARS_PER_ROW * ROWS_PER_IMAGE
 
-TEXT_FILE = "edu4808.txt"
+# 字表依序產生字頁，每個字表從新的一頁開始：
+# - edu4808.txt：教育部 4808 常用字（只取 U+4E00~U+9FFF 的漢字），kanji-jis215~233
+# - font_extra.txt：字型裡有、但主題原本沒有的其他全形字（make_extra_list.py 產生），kanji-jis234 之後；
+#   檔案不存在就跳過
+TEXT_FILES = [
+    ("edu4808.txt", lambda ch: '\u4e00' <= ch <= '\u9fff'),
+    ("font_extra.txt", lambda ch: not ch.isspace()),
+]
 OUTPUT_DIR = Path("output_rgba_gradient_fixed")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -28,9 +35,15 @@ INI_BASE_SECTION = "kanji-jis"
 START_INDEX = 215
 
 # === 讀取字表 ===
-with open(TEXT_FILE, "r", encoding="utf-8") as f:
-    all_chars = list(dict.fromkeys([ch for line in f for ch in line.strip() if '\u4e00' <= ch <= '\u9fff']))
-char_groups = [all_chars[i:i + CHARS_PER_IMAGE] for i in range(0, len(all_chars), CHARS_PER_IMAGE)]
+char_groups = []
+seen_chars = set()
+for text_file, keep in TEXT_FILES:
+    if not Path(text_file).exists():
+        continue
+    with open(text_file, "r", encoding="utf-8") as f:
+        chars = [ch for ch in dict.fromkeys(ch for line in f for ch in line if keep(ch)) if ch not in seen_chars]
+    seen_chars.update(chars)
+    char_groups += [chars[i:i + CHARS_PER_IMAGE] for i in range(0, len(chars), CHARS_PER_IMAGE)]
 
 # === 載入字型（放大 SUPERSAMPLE 倍） ===
 font = ImageFont.truetype(FONT_FILE, round(FONT_SIZE * SUPERSAMPLE))
